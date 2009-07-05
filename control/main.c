@@ -111,7 +111,7 @@ int read_string( int sock, char *buf, ssize_t maxlen )
 		buf++;
 	}
 
-	// Have we not yet reached EOF or \0?
+	/* Have we not yet reached EOF or \0? */
 	if ( read( sock, buf, 1 ) != 0 )
 		return FALSE;
 	
@@ -180,17 +180,22 @@ int process_command( int sock )
 int server( void )
 {
 	int sock, recv_sock;
-	int result, yes;
+	int result;
 	struct sockaddr_in addr;
+#ifndef _MINIX
+	int yes;
+#endif
 
 	sock = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP );
 
+#ifndef _MINIX
 	yes = 1;
 	result = setsockopt( sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof( int ) );
 	if ( result != 0 ) {
 		printf( "Could not set SO_REUSEADDR on socket.\n" );
 		return FALSE;
 	}
+#endif
 
 	if ( sock == -1 ) {
 		printf( "Could not create socket\n" );
