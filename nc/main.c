@@ -81,11 +81,19 @@ int parse_cmdline( int argc, char *argv[] )
 int nc_get( void )
 {
 	int sock, recv_sock;
+	int result, yes;
 	struct sockaddr_in addr;
 	char buf[BUFSIZE];
 	ssize_t len;
 
 	sock = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP );
+
+	yes = 1;
+	result = setsockopt( sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof( int ) );
+	if ( result != 0 ) {
+		printf( "Could not set SO_REUSEADDR on socket.\n" );
+		return FALSE;
+	}
 
 	if ( sock == -1 ) {
 		printf( "Could not create socket\n" );
