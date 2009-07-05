@@ -78,7 +78,7 @@ int parse_cmdline( int argc, char *argv[] )
 	return TRUE;
 }
 
-int nc_get()
+int nc_get( void )
 {
 	int sock, recv_sock;
 	struct sockaddr_in addr;
@@ -127,7 +127,7 @@ int nc_get()
 	return TRUE;
 }
 
-int nc_send()
+int nc_send( void )
 {
 	int sock;
 	struct hostent *host_info;
@@ -151,7 +151,7 @@ int nc_send()
 
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons( port );
-	bcopy( host_info->h_addr, &(addr.sin_addr.s_addr), host_info->h_length );
+	memcpy( &(addr.sin_addr.s_addr), host_info->h_addr, host_info->h_length );
 	
 	printf( "Connecting to %s\n", inet_ntoa( addr.sin_addr ) );
 	
@@ -176,12 +176,12 @@ int nc_send()
 
 int main( int argc, char *argv[] )
 {
+	int result = FALSE;
+
 	if ( ! parse_cmdline( argc, argv ) ) {
 		usage( argv[0] );
 		exit( EXIT_FAILURE );
 	}
-
-	int result = FALSE;
 
 	if ( mode == MODE_GET )
 		result = nc_get();
