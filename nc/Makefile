@@ -1,5 +1,3 @@
-#!/bin/sh
-
 all: nc
 
 nc: main.c
