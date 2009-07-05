@@ -1,3 +1,10 @@
+/*
+ * mnxcontrol -- Remote control utilities for UNIX, specifically Minix
+ * Copyright (c) 2009 Marten Klencke
+ * 
+ * Distributed under an MIT license, See COPYING for details.
+ */
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
