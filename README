@@ -1,0 +1,175 @@
+mnxcontrol README
+=================
+
+--------
+Contents
+--------
+
+1. About mnxcontrol
+2. Compilation
+3. Using nc
+4. Using control
+5. Using push
+6. Getting the Latest Version
+7. Contact Information
+8. References
+
+
+------------------
+1. About mnxcontrol
+------------------
+
+mnxcontrol is a set of programs meant for remotely controlling a MINIX
+machine. It was developed by Marten Klencke for use during the operating
+systems practical work at the Vrije Universiteit Amsterdam
+(http://www.cs.vu.nl/~bs/). Some development tools are missing from the
+MINIX (virtual) machines that students are expected to use:
+
+- A decent editor like Vim
+- A decent shell like Bash
+- A source code versioning system like Git, Bazaar, Mercurial, Bazaar, etc.
+
+Using mnxcontrol, all the source code for the practical work can be
+edited on another machine (Linux, BSD, whatever) and then pushed to the
+MINIX (virtual) machine. This works great when using MINIX in a virtual
+machine using, for example VMWare.
+
+mnxcontrol currently consists of the following tools:
+
+- nc:      A very simple netcat-like tool that can be used to transfer data
+           over a network.
+- control: A client/server program that can be started as a server on a MINIX
+           machine and then be used from a client machine to remotely execute
+		   shell commands and transfer files.
+- push:    A python script for syncing a local directory to a remote
+           directory. It will only transfer files modified since the last
+		   'push'.
+
+Beware that none of these programs have any security features builtin! They
+are only meant to be used by yourself and to be as simple as possible.
+
+
+--------------
+2. Compilation
+--------------
+
+mnxcontrol has to be compiled on both the MINIX machine and your own
+machine. Provided that you have a C compiler on both, execute the following
+commands on each machine:
+
+$ make
+
+To get mnxcontrol onto your MINIX virtual machine, you can use urlget, which
+is included in the MINIX version used for the operating systems practical.
+Find the url of the .tgz of the latest version on
+http://github.com/mklencke/mnxcontrol/downloads and download it onto your
+MINIX machine:
+
+$ urlget <url> > mnxcontrol.tgz
+
+If you want to use 'push' on the client machine, you also need Python.
+
+
+-----------
+3. Using nc
+-----------
+
+nc makes it very simple to transfer files between machines. Simply listen
+on one machine with:
+
+$ ./nc get > <filename>
+
+Make sure you know the hostname or IP address of the machine listening. Then
+send a file:
+
+$ ./nc send <hostname_or_ip> < <filename>
+
+Of course, since nc uses standard input and standard output, you can also
+pipe output of other commands or type things.
+
+
+----------------
+4. Using control
+----------------
+
+control consists of a server part, to be run on the MINIX machine, and a
+client part that can be used from anywhere. Start the server part on MINIX:
+
+$ ./control server
+
+Now you can remotely execute shell commands and put files (more features
+pending.) When remotely executing shell commands, the output will be echoed
+back to your terminal and you will see the exit status of the remote command.
+Also, the exit status of control will be the same as the exit status of the
+remote command (or 1 in case of a communication failure.) Some examples:
+
+$ echo 'ls /' | ./control shellcommand 172.16.191.129
+$ ./control putfile 172.16.191.129 "/root/foo/bar.txt" < ~/bar.txt
+
+In the second command, the local file bar.txt will be copied to
+/root/foo/bar.txt on the MINIX machine.
+
+You can find out the IP address of your MINIX virtual machine by typing
+'ifconfig' on its terminal.
+
+
+-------
+5. push
+-------
+
+push, written in Python, is a frontend for control. It can be used to mirror
+a local directory on the MINIX machine. Usage example:
+
+$ ./push ~/dev/origsrc/kernel 172.16.191.129 /usr/src/kernel
+
+This will mirror the directory ~/dev/origsrc/kernel and all its subdirectories
+to /usr/src/kernel on the MINIX machine. By default, push will only transfer
+files that have been modified or added since the last push. A transfer of all
+files can be forced by doing:
+
+$ ./push <local_dir> <hostname_or_ip> <remote_dir>
+
+or by removing the file .mnxcontrol_timestamp in the local source directory.
+
+Typically, for the operating systems practical assignment, you will want to
+get the original source (/usr/origsrc.tar) to your local machine, put it in
+version control and then work on the files. To try your changes on MINIX,
+push directories like kernel/, extra/, servers/, include/, etc. to /usr/src
+on the MINIX machine. You should create a script to push all directories
+that you are modifying at once.
+
+An added  benefit of using a version control system is that you can create
+different branches for each sub-assignment of the practical work so they
+won't interfere with eachother.
+
+
+-----------------------------
+6. Getting the Latest Version
+-----------------------------
+
+The latest release can be found on the website (see Contact Information). If
+you want to keep up to date on the development, you may clone the latest
+development revision from Git:
+
+$ git clone git://github.com/mklencke/mnxcontrol.git
+
+Any enhancements, suggestions and patches are welcome!
+
+----------------------
+7. Contact Information
+----------------------
+
+mnxcontrol is being developed by Marten Klencke <mklencke@cs.vu.nl>.
+
+Website  : http://github.com/mklencke/mnxcontrol/
+E-Mail   : mklencke@cs.vu.nl
+
+
+-------------
+8. References
+-------------
+
+- http://www.cs.vu.nl/~bs/
+- http://www.cs.vu.nl/
+- http://www.minix3.org/
+
