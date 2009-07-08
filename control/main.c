@@ -228,6 +228,7 @@ int process_putfile( int sock )
 	fd = creat( buf, S_IRWXU );
 	if ( fd == -1 ) {
 		result = RESULT_COULD_NOT_CREATE_FILE;
+		printf( "Error creating file %s: %s\n", buf, strerror( errno ) );
 		write( sock, &result, sizeof( result ) );
 		return TRUE;
 	}
@@ -236,6 +237,8 @@ int process_putfile( int sock )
 	write( sock, &result, sizeof( result ) );
 
 	passthru_file( sock, fd, FALSE );
+
+	close( fd );
 
 	return TRUE;
 }
