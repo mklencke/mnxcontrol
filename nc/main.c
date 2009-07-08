@@ -32,7 +32,7 @@ char *host = NULL;
 
 void usage( char *cmd )
 {
-	printf( "Usage: %s (get|send) (<host>) (<port>)\n", cmd );
+	printf( "Usage: %s (get|send) [<host>] [<port>]\n", cmd );
 	printf( "Examples:\n" );
 	printf( "%s send 192.168.0.2\n", cmd );
 	printf( "%s send 192.168.0.2 2706\n", cmd );

@@ -44,7 +44,7 @@ char *filename;
 
 void usage( char *cmd )
 {
-	printf( "Usage: %s (server|shellcommand|putfile) (<host>) (<filename>) (<port>)\n", cmd );
+	printf( "Usage: %s (server|shellcommand|putfile) [<host>] [<filename>] [<port>]\n", cmd );
 	printf( "Examples:\n" );
 	printf( "%s server\n", cmd );
 	printf( "%s shellcommand minixhost\n", cmd );
