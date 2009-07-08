@@ -1,0 +1,92 @@
+#!/usr/bin/env python
+
+# mnxcontrol -- Remote control utilities for UNIX, specifically Minix
+#
+# Copyright (c) 2009 Marten Klencke
+# Distributed under an MIT license, See COPYING for details.
+
+LAST_PUSH_TIME_FILE = ".mnxcontrol_timestamp"
+IGNORE_PATTERNS = [ ".git", LAST_PUSH_TIME_FILE ]
+
+import sys
+import os
+import pickle
+import time
+
+last_push_time = 0
+push_all = False
+dest_host = "localhost"
+
+def get_last_push_time( source_path ):
+	global last_push_time
+
+	last_push_file = os.path.join( source_path, LAST_PUSH_TIME_FILE )
+	try:
+		f = open( last_push_file, "r" )
+		last_push_time = pickle.load( f )
+		f.close()
+		
+		print "Last push time: %d" % last_push_time
+	except:
+		print "Could not determine last push time, pushing everything..."
+		last_push_time = 0
+
+def save_last_push_time( source_path ):
+	last_push_file = os.path.join( source_path, LAST_PUSH_TIME_FILE )
+	f = open( last_push_file, "w" )
+	pickle.dump( int( time.time() ), f )
+	f.close()
+
+def usage():
+	cmd = sys.argv[0]
+	print "Usage: %s <source path> <destination host> <destination path> [all]" % ( sys.argv[0], )
+
+def been_modified( path ):
+	stat = os.stat( path )
+	return ( int( stat.st_mtime ) > last_push_time )
+
+def push_file( source_path, path, dest_path ):
+	dest_path = os.path.join( dest_path, os.path.relpath( path, source_path ) )
+
+	print "Transferring %s to %s:%s..." % ( path, dest_host, dest_path )
+
+	os.system( "control/control putfile %s \"%s\" < \"%s\"" % ( dest_host, dest_path, path ) )
+
+# **** ENTRY POINT ****
+
+if ( ( len( sys.argv ) < 4 ) or ( len( sys.argv ) > 5 ) ):
+	usage()
+	raise SystemExit
+
+if ( len( sys.argv ) == 5 ):
+	if ( sys.argv[4] == "all" ):
+		print "Pushing all files..."
+		push_all = True
+	else:
+		usage()
+		raise SystemExit
+
+source_path = sys.argv[1]
+dest_host = sys.argv[2]
+dest_path = sys.argv[3]
+
+if ( not os.path.isdir( source_path ) ):
+	print "%s is not an existing path on this machine" % source_path
+
+if ( not push_all ):
+	get_last_push_time( source_path )
+
+for ( dirpath, dirnames, filenames ) in os.walk( source_path, topdown=True ):
+	for pattern in IGNORE_PATTERNS:
+		if ( dirnames.count( pattern ) > 0 ):
+			dirnames.remove( pattern )
+		if ( filenames.count( pattern ) > 0 ):
+			filenames.remove( pattern )
+
+	for filename in filenames:
+		filepath = os.path.join( dirpath, filename )
+		if ( been_modified( filepath ) ):
+			push_file( source_path, filepath, dest_path )
+
+save_last_push_time( source_path )
+
