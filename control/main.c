@@ -206,6 +206,8 @@ int process_putfile( int sock )
 		return FALSE;
 	}
 
+	printf( "Receiving %s...\n", buf );
+
 	/* split path and filename */
 	filesep = strrchr( buf, '/' );
 	if ( filesep != NULL ) {
@@ -348,7 +350,7 @@ int putfile( int sock )
 		return EXIT_FAILURE;
 	}
 
-	printf( "yeah\n" );
+	printf( "Successfully transferred %s!\n", filename );
 
 	passthru_file( STDIN_FILENO, sock, FALSE );
 	
