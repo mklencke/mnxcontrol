@@ -32,7 +32,7 @@ typedef enum _control_mode { MODE_NONE, MODE_SERVER, MODE_PUTFILE, MODE_LISTDIR,
 #define NUM_COMMANDS 6
 typedef enum _control_command { COMMAND_NONE, COMMAND_PUTFILE, COMMAND_LISTDIR, COMMAND_GETFILE, COMMAND_DELETEFILE, COMMAND_SHELLCOMMAND } control_command;
 
-typedef enum _control_result { RESULT_OK, RESULT_COMMAND_TOO_LONG, RESULT_COMMAND_ERROR } control_result;
+typedef enum _control_result { RESULT_OK, RESULT_COMMAND_TOO_LONG, RESULT_COMMAND_ERROR, RESULT_PATH_TOO_LONG, RESULT_COULD_NOT_CREATE_DIR, RESULT_COULD_NOT_CREATE_FILE, RESULT_ERROR } control_result;
 
 #define MODE_TO_COMMAND( mode ) (control_command)( mode - 1 )
 
@@ -40,14 +40,17 @@ control_mode mode;
 control_command command;
 int port = PORT_DEFAULT;
 char *host = NULL;
+char *filename;
 
 void usage( char *cmd )
 {
-	printf( "Usage: %s (server|shellcommand) (<host>) (<port>)\n", cmd );
+	printf( "Usage: %s (server|shellcommand|putfile) (<host>) (<filename>) (<port>)\n", cmd );
 	printf( "Examples:\n" );
 	printf( "%s server\n", cmd );
-	printf( "%s shellcommand\n", cmd );
-	printf( "%s shellcommand 1408\n", cmd );
+	printf( "%s shellcommand minixhost\n", cmd );
+	printf( "%s shellcommand minixhost 1408\n", cmd );
+	printf( "%s putfile minixhost \"foo/bar.txt\"\n", cmd );
+	printf( "%s putfile minixhost \"foo/bar.txt\" 1408\n", cmd );
 }
 
 int parse_cmdline( int argc, char *argv[] )
@@ -62,6 +65,9 @@ int parse_cmdline( int argc, char *argv[] )
 
 	if ( strcmp( argv[1], "shellcommand" ) == 0 )
 		mode = MODE_SHELLCOMMAND;
+
+	if ( strcmp( argv[1], "putfile" ) == 0 )
+		mode = MODE_PUTFILE;
 
 	if ( mode == MODE_NONE )
 		return FALSE;
@@ -81,6 +87,17 @@ int parse_cmdline( int argc, char *argv[] )
 			port_str = argv[3];
 	}
 
+	if ( mode == MODE_PUTFILE ) {
+		if ( ( argc < 4 ) || ( argc > 5 ) )
+			return FALSE;
+
+		host = argv[2];
+		filename = argv[3];
+
+		if ( argc == 5 )
+			port_str = argv[4];
+	}
+
 	if ( port_str != NULL ) {
 		port = atoi( port_str );
 		if ( port <= 0 ) {
@@ -92,12 +109,13 @@ int parse_cmdline( int argc, char *argv[] )
 	return TRUE;
 }
 
-void passthru_file( int source, int destination )
+void passthru_file( int source, int destination, int seek )
 {
 	char buf[BUFSIZE];
 	ssize_t len;
 
-	lseek( source, 0, SEEK_SET );
+	if ( seek )
+		lseek( source, 0, SEEK_SET );
 
 	while ( ( len = read( source, buf, BUFSIZE ) ) ) {
 		write( destination, buf, len );
@@ -163,7 +181,7 @@ int process_shellcommand( int sock )
 			printf( "exit status: %d\n", exit_status );
 			write( sock, &exit_status, sizeof( exit_status ) );
 
-			passthru_file( tmp_fd, sock );
+			passthru_file( tmp_fd, sock, TRUE );
 
 			close( tmp_fd );
 			unlink( tempfile_name );
@@ -173,13 +191,65 @@ int process_shellcommand( int sock )
 	return TRUE;
 }
 
+int process_putfile( int sock )
+{
+	char buf[BUFSIZE];
+	char *filesep;
+	char mkdir_cmd[BUFSIZE + 32]; /* enough space to put 'mkdir -p "<path>"' */
+	control_result result;
+	int retval;
+	int fd;
+
+	if ( ! read_string( sock, buf, BUFSIZE ) ) {
+		result = RESULT_PATH_TOO_LONG;
+		write( sock, &result, sizeof( result ) );
+		return FALSE;
+	}
+
+	/* split path and filename */
+	filesep = strrchr( buf, '/' );
+	if ( filesep != NULL ) {
+		/* make sure the directory exists */
+
+		*filesep = '\0';
+
+		sprintf( mkdir_cmd, "mkdir -p \"%s\"", buf );
+		retval = system( mkdir_cmd );
+		if ( retval != 0 ) {
+			result = RESULT_COULD_NOT_CREATE_DIR;
+			write( sock, &result, sizeof( result ) );
+			return FALSE;
+		}
+
+		/* put path/file separator back so we can open the file */
+		*filesep = '/';
+	}
+
+	fd = creat( buf, S_IRWXU );
+	if ( fd == -1 ) {
+		result = RESULT_COULD_NOT_CREATE_FILE;
+		write( sock, &result, sizeof( result ) );
+		return TRUE;
+	}
+
+	result = RESULT_OK;
+	write( sock, &result, sizeof( result ) );
+
+	passthru_file( sock, fd, FALSE );
+
+	return TRUE;
+}
+
 int process_command( int sock )
 {
 	control_command cmd;
 	read( sock, &cmd, sizeof( cmd ) );
 
-	if ( cmd ==  COMMAND_SHELLCOMMAND )
+	if ( cmd == COMMAND_SHELLCOMMAND )
 		return process_shellcommand( sock );
+
+	if ( cmd == COMMAND_PUTFILE )
+		return process_putfile( sock );
 	
 	return FALSE;
 }
@@ -263,6 +333,25 @@ int shellcommand( int sock )
 	return exit_status;
 }
 
+int putfile( int sock )
+{
+	control_result result;
+
+	write( sock, filename, strlen( filename ) + 1 );
+
+	read( sock, &result, sizeof( result ) );
+	if ( result != RESULT_OK ) {
+		printf( "Error creating file on server: %d\n", result );
+		return EXIT_FAILURE;
+	}
+
+	printf( "yeah\n" );
+
+	passthru_file( STDIN_FILENO, sock, FALSE );
+	
+	return EXIT_SUCCESS;
+}
+
 void send_command( int sock, control_mode mode )
 {
 	control_command cmd = MODE_TO_COMMAND( mode );
@@ -305,6 +394,9 @@ int client( control_mode mode )
 	if ( mode == MODE_SHELLCOMMAND )
 		return shellcommand( sock );
 
+	if ( mode == MODE_PUTFILE )
+		return putfile( sock );
+
 	close( sock );
 
 	return EXIT_SUCCESS;
@@ -324,6 +416,9 @@ int main( int argc, char *argv[] )
 
 	if ( mode == MODE_SHELLCOMMAND )
 		return client( MODE_SHELLCOMMAND );
+
+	if ( mode == MODE_PUTFILE )
+		return client( MODE_PUTFILE );
 	
 	if ( result ) 
 		return EXIT_SUCCESS;
