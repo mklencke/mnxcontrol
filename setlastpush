@@ -1,0 +1,51 @@
+#!/usr/bin/env python
+
+# mnxcontrol -- Remote control utilities for UNIX, specifically Minix
+#
+# Copyright (c) 2009 Marten Klencke
+# Distributed under an MIT license, See COPYING for details.
+
+LAST_PUSH_TIME_FILE = ".mnxcontrol_timestamp"
+
+import sys
+import os
+import pickle
+import time
+
+last_push_time = 0
+
+def save_last_push_time( source_path, t=0 ):
+	last_push_file = os.path.join( source_path, LAST_PUSH_TIME_FILE )
+	f = open( last_push_file, "w" )
+	pickle.dump( t, f )
+	f.close()
+
+def usage():
+	cmd = sys.argv[0]
+	print "Usage: %s <source path> [<unixtime>]" % ( sys.argv[0], )
+
+# **** ENTRY POINT ****
+
+if ( ( len( sys.argv ) < 2 ) or ( len( sys.argv ) > 3 ) ):
+	usage()
+	raise SystemExit
+
+
+
+if ( len( sys.argv ) == 3 ):
+	if ( not sys.argv[2].isdigit() ):
+		print "Time argument is not a valid positive integer"
+		raise SystemExit
+
+	last_push_time = int( sys.argv[2] )
+else:
+	last_push_time = int( time.time() )
+
+source_path = sys.argv[1]
+
+if ( not os.path.isdir( source_path ) ):
+	print "%s is not an existing path on this machine" % source_path
+	raise SystemExit
+
+save_last_push_time( source_path, last_push_time )
+
