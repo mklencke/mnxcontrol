@@ -72,6 +72,7 @@ dest_path = sys.argv[3]
 
 if ( not os.path.isdir( source_path ) ):
 	print "%s is not an existing path on this machine" % source_path
+	raise SystemExit
 
 if ( not push_all ):
 	get_last_push_time( source_path )
